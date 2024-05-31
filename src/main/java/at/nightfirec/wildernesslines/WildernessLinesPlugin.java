@@ -53,6 +53,7 @@ public class WildernessLinesPlugin extends Plugin
 {
 	private static final List<Rectangle> WILDERNESS_MULTI_AREAS = ImmutableList.of(
 		new Rectangle(3008, 3600, 64, 112), // Dark warrior's palace
+		new Rectangle(3072, 3654, 1, 2), // Two tiles next to southern rev caves entrance which used to be a BH "singles" lure spot
 		new Rectangle(2946, 3816, 14, 16), // Chaos altar
 		new Rectangle(2984, 3912, 24, 16), // Balance crossing to wilderness agility course
 		new Rectangle(3008, 3856, 40, 48), // North of kbd entrance
