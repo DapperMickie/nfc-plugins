@@ -32,16 +32,23 @@ import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Constants;
 import net.runelite.api.Perspective;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.geometry.Geometry;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
@@ -51,7 +58,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 )
 public class WildernessLinesPlugin extends Plugin
 {
-	private static final List<Rectangle> WILDERNESS_MULTI_AREAS = ImmutableList.of(
+	private static final Set<Rectangle> WILDERNESS_MULTI_AREAS = Set.of(
 		new Rectangle(3008, 3600, 64, 112), // Dark warrior's palace
 		new Rectangle(3072, 3654, 1, 2), // Two tiles next to southern rev caves entrance which used to be a BH "singles" lure spot
 		new Rectangle(2946, 3816, 14, 16), // Chaos altar
@@ -134,10 +141,35 @@ public class WildernessLinesPlugin extends Plugin
 	private WildernessLinesOverlay overlay;
 
 	@Inject
+	private CoordinateOverlay coordinateOverlay;
+
+	@Inject
+	private CoordinateSidePanel coordinateSidePanel;
+
+	@Inject
 	private OverlayManager overlayManager;
 
 	@Inject
 	private Client client;
+
+	@Inject
+	private WildernessLinesConfig config;
+
+	@Inject
+	private ItemManager itemManager;
+
+	@Inject
+	private ClientToolbar clientToolbar;
+
+	@Inject
+	private TileLocationOverlay tileLocationOverlay;
+
+	private CoordinateSidePanel panel;
+	private NavigationButton navButton;
+
+	private Rectangle currentRectangle = null;
+	private Area currentArea = null;
+
 
 	@Provides
 	WildernessLinesConfig getConfig(ConfigManager configManager)
@@ -149,17 +181,76 @@ public class WildernessLinesPlugin extends Plugin
 	public void startUp()
 	{
 		overlayManager.add(overlay);
+		overlayManager.add(coordinateOverlay);
+		overlayManager.add(tileLocationOverlay);
+
+		panel = new CoordinateSidePanel(client, config, this);
+
+		navButton =
+			NavigationButton.builder()
+				.tooltip("Wilderness Lines")
+				.icon(itemManager.getImage(995))
+				.panel(panel)
+				.build();
+
+		clientToolbar.addNavigation(navButton);
 	}
 
 	@Override
 	public void shutDown()
 	{
 		overlayManager.remove(overlay);
+		overlayManager.remove(coordinateOverlay);
+		overlayManager.remove(tileLocationOverlay);
+		clientToolbar.removeNavigation(navButton);
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		panel.update();
+	}
+
+	private Set<Area> spearAreas = new HashSet<>();
+
+	private void removeSpearLines()
+	{
+		for (Area area : spearAreas)
+		{
+			SPEAR_MULTI_AREA.subtract(area);
+		}
+	}
+
+	private void addSpearLines()
+	{
+		for (int i = 0; i <= SPEAR_RANGE; i++)
+		{
+			final Rectangle spearArea = new Rectangle(currentRectangle);
+			spearArea.grow(SPEAR_RANGE - i, i);
+			Area area = new Area(spearArea);
+			SPEAR_MULTI_AREA.add(area);
+			spearAreas.add(area);
+		}
+	}
+
+	public void addLocation(Rectangle r)
+	{
+		if (currentRectangle != null)
+		{
+			MULTI_AREA.subtract(currentArea);
+			//WILDERNESS_MULTI_AREAS.remove(currentRectangle);
+			removeSpearLines();
+		}
+		currentRectangle = r;
+		currentArea = new Area(currentRectangle);
+		MULTI_AREA.add(currentArea);
+		addSpearLines();
+		//WILDERNESS_MULTI_AREAS.add(r);
 	}
 
 	private void transformWorldToLocal(float[] coords)
 	{
-		final LocalPoint lp = LocalPoint.fromWorld(client, (int)coords[0], (int)coords[1]);
+		final LocalPoint lp = LocalPoint.fromWorld(client.getTopLevelWorldView(), (int) coords[0], (int) coords[1]);
 		coords[0] = lp.getX() - Perspective.LOCAL_TILE_SIZE / 2f;
 		coords[1] = lp.getY() - Perspective.LOCAL_TILE_SIZE / 2f;
 	}

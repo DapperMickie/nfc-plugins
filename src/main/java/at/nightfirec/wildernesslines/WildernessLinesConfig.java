@@ -146,4 +146,15 @@ public interface WildernessLinesConfig extends Config
 	{
 		return Color.CYAN;
 	}
+
+	@ConfigItem(
+		position = 100,
+		keyName = "developerMode",
+		name = "Developer Mode",
+		description = "Turns the plugins developer mode on so you'll get the tools to add new areas"
+	)
+	default boolean developerMode()
+	{
+		return false;
+	}
 }
