@@ -36,7 +36,7 @@ public class CoordinateOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.developerMode())
+		if (!config.developerMode() || !config.currentPlayer())
 		{
 			return null;
 		}
@@ -51,11 +51,11 @@ public class CoordinateOverlay extends OverlayPanel
 				.text("Wilderness Lines Devtool")
 				.build(),
 			LineComponent.builder()
-				.left("X:")
+				.left("My Player X:")
 				.right(String.valueOf(worldPoint.getX()))
 				.build(),
 			LineComponent.builder()
-				.left("Y:")
+				.left("My Player Y:")
 				.right(String.valueOf(worldPoint.getY()))
 				.build(),
 			LineComponent.builder()

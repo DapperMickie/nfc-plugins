@@ -34,8 +34,10 @@ import java.awt.geom.GeneralPath;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
+import net.runelite.api.Player;
 import net.runelite.api.Point;
 import net.runelite.api.Varbits;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.geometry.Geometry;
 import net.runelite.client.ui.overlay.Overlay;
@@ -91,12 +93,15 @@ class WildernessLinesOverlay extends Overlay
 		graphics.setColor(color);
 		graphics.setStroke(new BasicStroke(1));
 
+		Player localPlayer = client.getLocalPlayer();
+		WorldView wv = localPlayer.getWorldView();
+
 		path = Geometry.filterPath(path, (p1, p2) ->
-			Perspective.localToCanvas(client, new LocalPoint((int)p1[0], (int)p1[1]), client.getPlane()) != null &&
-			Perspective.localToCanvas(client, new LocalPoint((int)p2[0], (int)p2[1]), client.getPlane()) != null);
+			Perspective.localToCanvas(client, new LocalPoint((int)p1[0], (int)p1[1], wv), wv.getPlane()) != null &&
+			Perspective.localToCanvas(client, new LocalPoint((int)p2[0], (int)p2[1], wv), wv.getPlane()) != null);
 		path = Geometry.transformPath(path, coords ->
 		{
-			Point point = Perspective.localToCanvas(client, new LocalPoint((int)coords[0], (int)coords[1]), client.getPlane());
+			Point point = Perspective.localToCanvas(client, new LocalPoint((int)coords[0], (int)coords[1], wv), wv.getPlane());
 			coords[0] = point.getX();
 			coords[1] = point.getY();
 		});

@@ -33,17 +33,20 @@ import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Constants;
+import net.runelite.api.ItemID;
 import net.runelite.api.Perspective;
+import net.runelite.api.Player;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.geometry.Geometry;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -180,6 +183,7 @@ public class WildernessLinesPlugin extends Plugin
 	@Override
 	public void startUp()
 	{
+		itemManager.getImage(ItemID.DRAGON_SPEAR);
 		overlayManager.add(overlay);
 		overlayManager.add(coordinateOverlay);
 		overlayManager.add(tileLocationOverlay);
@@ -189,11 +193,13 @@ public class WildernessLinesPlugin extends Plugin
 		navButton =
 			NavigationButton.builder()
 				.tooltip("Wilderness Lines")
-				.icon(itemManager.getImage(995))
+				.icon(itemManager.getImage(ItemID.DRAGON_SPEAR))
 				.panel(panel)
 				.build();
-
-		clientToolbar.addNavigation(navButton);
+		if (config.developerMode())
+		{
+			clientToolbar.addNavigation(navButton);
+		}
 	}
 
 	@Override
@@ -203,6 +209,28 @@ public class WildernessLinesPlugin extends Plugin
 		overlayManager.remove(coordinateOverlay);
 		overlayManager.remove(tileLocationOverlay);
 		clientToolbar.removeNavigation(navButton);
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		// Check if the change is related to your plugin
+		if (!event.getGroup().equals(WildernessLinesConfig.GROUP))
+		{
+			return;
+		}
+
+		if (event.getKey().equals("developerMode"))
+		{
+			if (event.getNewValue().equals(String.valueOf(true)))
+			{
+				clientToolbar.addNavigation(navButton);
+			}
+			else
+			{
+				clientToolbar.removeNavigation(navButton);
+			}
+		}
 	}
 
 	@Subscribe
@@ -250,7 +278,8 @@ public class WildernessLinesPlugin extends Plugin
 
 	private void transformWorldToLocal(float[] coords)
 	{
-		final LocalPoint lp = LocalPoint.fromWorld(client.getTopLevelWorldView(), (int) coords[0], (int) coords[1]);
+		final Player player = client.getLocalPlayer();
+		final LocalPoint lp = LocalPoint.fromWorld(player.getWorldView(), (int) coords[0], (int) coords[1]);
 		coords[0] = lp.getX() - Perspective.LOCAL_TILE_SIZE / 2f;
 		coords[1] = lp.getY() - Perspective.LOCAL_TILE_SIZE / 2f;
 	}
@@ -277,8 +306,9 @@ public class WildernessLinesPlugin extends Plugin
 
 	private GeneralPath getLinesToDisplay(final Shape... shapes)
 	{
+		final WorldView wv = client.getLocalPlayer().getWorldView();
 		final Rectangle sceneRect = new Rectangle(
-			client.getBaseX() + 1, client.getBaseY() + 1,
+			wv.getBaseX() + 1, wv.getBaseY() + 1,
 			Constants.SCENE_SIZE - 2, Constants.SCENE_SIZE - 2);
 
 		final GeneralPath paths = new GeneralPath();

@@ -31,9 +31,11 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup("wilderness-multi-lines")
+@ConfigGroup(WildernessLinesConfig.GROUP)
 public interface WildernessLinesConfig extends Config
 {
+	String GROUP = "wilderness-multi-lines";
+
 	@ConfigItem(
 		position = 0,
 		keyName = "onlyShowInWilderness",
@@ -147,14 +149,46 @@ public interface WildernessLinesConfig extends Config
 		return Color.CYAN;
 	}
 
+	@ConfigSection(
+		name = "Developer Options",
+		description = "",
+		position = 100
+	)
+	String developerOptions = "developerOptions";
+
 	@ConfigItem(
-		position = 100,
+		position = 0,
 		keyName = "developerMode",
 		name = "Developer Mode",
-		description = "Turns the plugins developer mode on so you'll get the tools to add new areas"
+		description = "Turns the plugins developer mode on so you'll get the tools to add new areas",
+		section = developerOptions
 	)
 	default boolean developerMode()
 	{
 		return false;
+	}
+
+	@ConfigItem(
+		position = 1,
+		keyName = "tileLocations",
+		name = "Tile Location Info",
+		description = "Turns on the overlay used to get location data of tiles you hover your mouse over (only when developer mode is enabled).",
+		section = developerOptions
+	)
+	default boolean tileLocations()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 1,
+		keyName = "currentPlayer",
+		name = "Player Location Info",
+		description = "Turns on the overlay used to get location data for your character position (only when developer mode is enabled).",
+		section = developerOptions
+	)
+	default boolean currentPlayer()
+	{
+		return true;
 	}
 }

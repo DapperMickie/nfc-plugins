@@ -47,7 +47,7 @@ public class TileLocationOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		if (!config.developerMode()) {
+		if (!config.developerMode() || !config.tileLocations()) {
 			return null;
 		}
 		graphics.setFont(FONT);
