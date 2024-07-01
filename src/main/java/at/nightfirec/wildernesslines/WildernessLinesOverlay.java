@@ -26,11 +26,20 @@
  */
 package at.nightfirec.wildernesslines;
 
+import com.google.common.collect.ImmutableList;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
@@ -64,6 +73,7 @@ class WildernessLinesOverlay extends Overlay
 	public Dimension render(Graphics2D graphics)
 	{
 		final boolean inWilderness = client.getVarbitValue(Varbits.IN_WILDERNESS) == 1;
+
 		if (!inWilderness && config.onlyShowInWilderness())
 		{
 			return null;
@@ -73,16 +83,17 @@ class WildernessLinesOverlay extends Overlay
 		{
 			renderPath(graphics, plugin.getSpearLinesToDisplay(), config.spearLinesColor());
 		}
+
 		renderPath(graphics, plugin.getMultiLinesToDisplay(), config.multiLinesColor());
 
 		if (config.show20Line())
 		{
-			renderPath(graphics, plugin.get20LineToDisplay(), config.twentyLineColor());
+			renderPath(graphics, plugin.getWilderness20LinesPath(), config.twentyLineColor());
 		}
 
 		if (config.show30Line())
 		{
-			renderPath(graphics, plugin.get30LineToDisplay(), config.thirtyLineColor());
+			renderPath(graphics, plugin.getWilderness30LinesPath(), config.thirtyLineColor());
 		}
 
 		return null;
@@ -90,6 +101,10 @@ class WildernessLinesOverlay extends Overlay
 
 	private void renderPath(Graphics2D graphics, GeneralPath path, Color color)
 	{
+		if (path == null)
+		{
+			return;
+		}
 		graphics.setColor(color);
 		graphics.setStroke(new BasicStroke(1));
 
@@ -97,11 +112,11 @@ class WildernessLinesOverlay extends Overlay
 		WorldView wv = localPlayer.getWorldView();
 
 		path = Geometry.filterPath(path, (p1, p2) ->
-			Perspective.localToCanvas(client, new LocalPoint((int)p1[0], (int)p1[1], wv), wv.getPlane()) != null &&
-			Perspective.localToCanvas(client, new LocalPoint((int)p2[0], (int)p2[1], wv), wv.getPlane()) != null);
+			Perspective.localToCanvas(client, new LocalPoint((int) p1[0], (int) p1[1], wv), wv.getPlane()) != null &&
+				Perspective.localToCanvas(client, new LocalPoint((int) p2[0], (int) p2[1], wv), wv.getPlane()) != null);
 		path = Geometry.transformPath(path, coords ->
 		{
-			Point point = Perspective.localToCanvas(client, new LocalPoint((int)coords[0], (int)coords[1], wv), wv.getPlane());
+			Point point = Perspective.localToCanvas(client, new LocalPoint((int) coords[0], (int) coords[1], wv), wv.getPlane());
 			coords[0] = point.getX();
 			coords[1] = point.getY();
 		});

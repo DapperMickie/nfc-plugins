@@ -25,14 +25,14 @@
  */
 package at.nightfirec.wildernesslines;
 
-import com.google.common.collect.ImmutableList;
 import com.google.inject.Provides;
 import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
-import java.awt.geom.Line2D;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
 import net.runelite.api.Client;
@@ -61,79 +61,20 @@ import net.runelite.client.ui.overlay.OverlayManager;
 )
 public class WildernessLinesPlugin extends Plugin
 {
-	private static final Set<Rectangle> WILDERNESS_MULTI_AREAS = Set.of(
-		new Rectangle(3008, 3600, 64, 112), // Dark warrior's palace
-		new Rectangle(3072, 3654, 1, 2), // Two tiles next to southern rev caves entrance which used to be a BH "singles" lure spot
-		new Rectangle(2946, 3816, 14, 16), // Chaos altar
-		new Rectangle(2984, 3912, 24, 16), // Balance crossing to wilderness agility course
-		new Rectangle(3008, 3856, 40, 48), // North of kbd entrance
-		new Rectangle(3021, 3855, 2, 1), // Two tiles NE of kbd entrance cage
-		new Rectangle(3048, 3896, 24, 8), // North of rune rocks
-		new Rectangle(3072, 3880, 64, 24), // North of lava maze
-		new Rectangle(3112, 3872, 24, 8), // Northeast of lava maze
-		new Rectangle(3136, 3840, 256, 64), // Northeast f2p wilderness
-		new Rectangle(3200, 3904, 192, 64), // Northeast p2p wilderness
-		new Rectangle(3152, 3752, 176, 88), // North-mid east f2p wilderness
-		new Rectangle(3192, 3525, 136, 227), // East f2p wilderness
-		new Rectangle(3328, 3525, 17, 18), // Small east f2p wilderness strip NE of lumberyard
-		new Rectangle(3191, 3689, 1, 1), // One silly tile that used to be a BH "singles" lure spot
-		new Rectangle(3136, 3525, 56, 59), // Wilderness north of Grand Exchange
-		new Rectangle(3152, 3584, 40, 36), // SE of Ferox 1
-		new Rectangle(3146, 3598, 6, 22), // SE of Ferox 2
-		new Rectangle(3147, 3596, 5, 2), // SE of Ferox 2 extension 1
-		new Rectangle(3149, 3595, 3, 1), // SE of Ferox 2 extension 2
-		new Rectangle(3150, 3594, 2, 1), // SE of Ferox 2 extension 3
-		new Rectangle(3151, 3593, 1, 1), // SE of Ferox 2 extension 4
-		new Rectangle(3152, 3620, 10, 6), // SE of Ferox 3
-		new Rectangle(3187, 3620, 5, 28), // East of Ferox 1
-		new Rectangle(3176, 3636, 11, 12), // East of Ferox 2
-		new Rectangle(3175, 3647, 1, 1) // One dumb tile north of bridge east of Ferox
-	);
 	private static final int SPEAR_RANGE = 4;
-	private static final Line2D[] TWENTY_LINES = {
-		// overworld
-		new Line2D.Float(2946, 3680, 3384, 3680),
-
-		// rev caves
-		new Line2D.Float(3202, 10080, 3205, 10080),
-		new Line2D.Float(3216, 10080, 3224, 10080),
-		new Line2D.Float(3228, 10080, 3230, 10080),
-		new Line2D.Float(3234, 10080, 3245, 10080),
-
-		// wilderness slayer caves
-		new Line2D.Float(3335, 10080, 3344, 10080),
-		new Line2D.Float(3349, 10080, 3367, 10080),
-		new Line2D.Float(3381, 10080, 3385, 10080),
-		new Line2D.Float(3394, 10080, 3397, 10080),
-		new Line2D.Float(3410, 10080, 3416, 10080),
-		new Line2D.Float(3436, 10080, 3449, 10080),
-	};
-	private static final Line2D[] THIRTY_LINES = {
-		// overworld
-		new Line2D.Float(2946, 3760, 3375, 3760),
-
-		// rev caves
-		new Line2D.Float(3164, 10160, 3185, 10160),
-		new Line2D.Float(3194, 10160, 3221, 10160),
-		new Line2D.Float(3235, 10160, 3255, 10160),
-
-		// wilderness slayer caves
-		new Line2D.Float(3333, 10160, 3349, 10160),
-		new Line2D.Float(3356, 10160, 3368, 10160),
-		new Line2D.Float(3421, 10160, 3428, 10160),
-	};
 
 	private static final Area MULTI_AREA = new Area();
 	private static final Area SPEAR_MULTI_AREA = new Area();
 
 	static
 	{
-		for (final Rectangle multiArea : WILDERNESS_MULTI_AREAS)
+		AreaGroup wildernessAreaGroup = PluginAreaGroups.getWildernessAreaGroup();
+		for (final at.nightfirec.wildernesslines.Area multiArea : wildernessAreaGroup.getAreas())
 		{
-			MULTI_AREA.add(new Area(multiArea));
+			MULTI_AREA.add(new Area(multiArea.getRectangle()));
 			for (int i = 0; i <= SPEAR_RANGE; i++)
 			{
-				final Rectangle spearArea = new Rectangle(multiArea);
+				final Rectangle spearArea = new Rectangle(multiArea.getRectangle());
 				spearArea.grow(SPEAR_RANGE - i, i);
 				SPEAR_MULTI_AREA.add(new Area(spearArea));
 			}
@@ -148,6 +89,9 @@ public class WildernessLinesPlugin extends Plugin
 
 	@Inject
 	private CoordinateSidePanel coordinateSidePanel;
+
+	@Inject
+	private MultiLinePluginPanel multiLinePluginPanel;
 
 	@Inject
 	private OverlayManager overlayManager;
@@ -169,6 +113,7 @@ public class WildernessLinesPlugin extends Plugin
 
 	private CoordinateSidePanel panel;
 	private NavigationButton navButton;
+	private NavigationButton navButton2;
 
 	private Rectangle currentRectangle = null;
 	private Area currentArea = null;
@@ -196,10 +141,20 @@ public class WildernessLinesPlugin extends Plugin
 				.icon(itemManager.getImage(ItemID.DRAGON_SPEAR))
 				.panel(panel)
 				.build();
+		navButton2 =
+			NavigationButton.builder()
+				.tooltip("Multi Lines")
+				.icon(itemManager.getImage(ItemID.DRAGON_SPEAR))
+				.panel(multiLinePluginPanel)
+				.build();
 		if (config.developerMode())
 		{
 			clientToolbar.addNavigation(navButton);
+			clientToolbar.addNavigation(navButton2);
 		}
+
+		loadAreaGroups();
+		multiLinePluginPanel.rebuild();
 	}
 
 	@Override
@@ -209,6 +164,7 @@ public class WildernessLinesPlugin extends Plugin
 		overlayManager.remove(coordinateOverlay);
 		overlayManager.remove(tileLocationOverlay);
 		clientToolbar.removeNavigation(navButton);
+		clientToolbar.removeNavigation(navButton2);
 	}
 
 	@Subscribe
@@ -225,10 +181,12 @@ public class WildernessLinesPlugin extends Plugin
 			if (event.getNewValue().equals(String.valueOf(true)))
 			{
 				clientToolbar.addNavigation(navButton);
+				clientToolbar.addNavigation(navButton2);
 			}
 			else
 			{
 				clientToolbar.removeNavigation(navButton);
+				clientToolbar.removeNavigation(navButton2);
 			}
 		}
 	}
@@ -236,7 +194,10 @@ public class WildernessLinesPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		panel.update();
+		if (config.developerMode())
+		{
+			panel.update();
+		}
 	}
 
 	private Set<Area> spearAreas = new HashSet<>();
@@ -266,14 +227,12 @@ public class WildernessLinesPlugin extends Plugin
 		if (currentRectangle != null)
 		{
 			MULTI_AREA.subtract(currentArea);
-			//WILDERNESS_MULTI_AREAS.remove(currentRectangle);
 			removeSpearLines();
 		}
 		currentRectangle = r;
 		currentArea = new Area(currentRectangle);
 		MULTI_AREA.add(currentArea);
 		addSpearLines();
-		//WILDERNESS_MULTI_AREAS.add(r);
 	}
 
 	private void transformWorldToLocal(float[] coords)
@@ -294,17 +253,81 @@ public class WildernessLinesPlugin extends Plugin
 		return getLinesToDisplay(SPEAR_MULTI_AREA);
 	}
 
-	GeneralPath get20LineToDisplay()
+	private List<AreaGroup> loadedAreaGroups = new ArrayList<>();
+
+	public List<AreaGroup> getLoadedAreaGroups()
 	{
-		return getLinesToDisplay(TWENTY_LINES);
+		return loadedAreaGroups;
 	}
 
-	GeneralPath get30LineToDisplay()
+	private void loadAreaGroups()
 	{
-		return getLinesToDisplay(THIRTY_LINES);
+		loadedAreaGroups.clear();
+		//TODO: load saved area groups
+		loadedAreaGroups.add(PluginAreaGroups.getWilderness20Lines());
+		loadedAreaGroups.add(PluginAreaGroups.getWilderness30Lines());
+		loadedAreaGroups.add(PluginAreaGroups.getWildernessAreaGroup());
+
+		prepareAreaGroups();
 	}
 
-	private GeneralPath getLinesToDisplay(final Shape... shapes)
+	private List<Shape> wilderness20LinesList = new ArrayList<>();
+	private GeneralPath wilderness20LinesPath = null;
+	private List<Shape> wilderness30LinesList = new ArrayList<>();
+	private GeneralPath wilderness30LinesPath = null;
+
+	private void prepareAreaGroups()
+	{
+		for (AreaGroup group : loadedAreaGroups)
+		{
+			for (at.nightfirec.wildernesslines.Area area : group.getAreas())
+			{
+				switch (group.getAreaType())
+				{
+					case WILDERNESS_20_LINE:
+						wilderness20LinesList.add(area.getLine2DFloat());
+						break;
+					case WILDERNESS_30_LINE:
+						wilderness30LinesList.add(area.getLine2DFloat());
+						break;
+					default:
+						break;
+				}
+			}
+		}
+	}
+
+	public GeneralPath getWilderness20LinesPath()
+	{
+		return getLinesToDisplay(wilderness20LinesList);
+	}
+
+	public GeneralPath getWilderness30LinesPath()
+	{
+		return getLinesToDisplay(wilderness30LinesList);
+	}
+
+	public GeneralPath getLinesToDisplay(final List<Shape> shapes)
+	{
+		final Player localPlayer = client.getLocalPlayer();
+		final WorldView wv = localPlayer == null ? client.getTopLevelWorldView() : localPlayer.getWorldView();
+		final Rectangle sceneRect = new Rectangle(
+			wv.getBaseX() + 1, wv.getBaseY() + 1,
+			Constants.SCENE_SIZE - 2, Constants.SCENE_SIZE - 2);
+
+		final GeneralPath paths = new GeneralPath();
+		for (final Shape shape : shapes)
+		{
+			GeneralPath lines = new GeneralPath(shape);
+			lines = Geometry.clipPath(lines, sceneRect);
+			lines = Geometry.splitIntoSegments(lines, 1);
+			lines = Geometry.transformPath(lines, this::transformWorldToLocal);
+			paths.append(lines, false);
+		}
+		return paths;
+	}
+
+	public GeneralPath getLinesToDisplay(final Shape... shapes)
 	{
 		final WorldView wv = client.getLocalPlayer().getWorldView();
 		final Rectangle sceneRect = new Rectangle(
